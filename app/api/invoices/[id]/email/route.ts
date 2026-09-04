@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { jsPDF } from "jspdf";
 import { ensureSchema, first, getSql } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 export const runtime = "nodejs";
 const escapeHtml = (value: unknown) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
@@ -29,8 +30,9 @@ function invoicePdf(inv: any) {
   return Buffer.from(doc.output("arraybuffer"));
 }
 
-export async function POST(_: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const denied = await requireAuth(request); if (denied) return denied;
     if (!process.env.RESEND_API_KEY || !process.env.INVOICE_FROM_EMAIL) return NextResponse.json({ error: "Resend is not configured yet." }, { status: 503 });
     const { id } = await params; await ensureSchema(); const sql = getSql(); const inv = first<any>(await sql`SELECT * FROM invoices WHERE id=${id}`);
     if (!inv) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
