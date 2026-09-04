@@ -1,0 +1,3 @@
+import { NextResponse } from "next/server";
+import { authConfigured, createSessionToken, SESSION_COOKIE } from "@/lib/auth";
+export async function POST(request:Request){if(!authConfigured())return NextResponse.json({error:"Admin login is not configured in Vercel yet."},{status:503});const body=await request.json();if(String(body.email||"").toLowerCase()!==process.env.ADMIN_EMAIL?.toLowerCase()||String(body.password||"")!==process.env.ADMIN_PASSWORD)return NextResponse.json({error:"Email ya password ghalat hai."},{status:401});const response=NextResponse.json({ok:true});response.cookies.set(SESSION_COOKIE,await createSessionToken(body.email),{httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"lax",path:"/",maxAge:60*60*24*14});return response;}
