@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { ensureSchema,getSql,first } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 export const dynamic="force-dynamic";
-export async function GET(){
+export async function GET(request: Request){
  try{
+  const denied=await requireAuth(request); if(denied)return denied;
   await ensureSchema(); const sql=getSql();
   const [clients,services,invoices,metrics]=await Promise.all([
    sql`SELECT * FROM clients ORDER BY company_name`,
