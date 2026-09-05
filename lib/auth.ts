@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
 export const SESSION_COOKIE = "catcore_session";
-export const authConfigured = () => Boolean(process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD);
+export const authConfigured = () =>
+  Boolean(process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD);
 
 async function signature(email: string) {
   const key = await crypto.subtle.importKey(
@@ -18,7 +19,9 @@ async function signature(email: string) {
       new TextEncoder().encode(`catcore:${email.toLowerCase()}`),
     ),
   );
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
+    "",
+  );
 }
 
 export async function createSessionToken(_email?: string) {
@@ -34,11 +37,11 @@ export async function isAuthenticated(request: Request) {
     .find((part) => part.startsWith(`${SESSION_COOKIE}=`))
     ?.slice(SESSION_COOKIE.length + 1);
   if (!token) return false;
-  return token === await createSessionToken();
+  return token === (await createSessionToken());
 }
 
 export async function requireAuth(request: Request) {
-  return await isAuthenticated(request)
+  return (await isAuthenticated(request))
     ? null
     : NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
