@@ -1,12 +1,13 @@
-import { neon } from "@neondatabase/serverless";
+import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 
-type Sql = ReturnType<typeof neon>;
+type Sql = NeonQueryFunction<false, false>;
 let client: Sql | null = null;
 let ready: Promise<void> | null = null;
 
 export function getSql() {
   const url = process.env.POSTGRES_URL || process.env.DATABASE_URL;
-  if (!url) throw new Error("Database is not connected. POSTGRES_URL is missing.");
+  if (!url)
+    throw new Error("Database is not connected. POSTGRES_URL is missing.");
   if (!client) client = neon(url);
   return client;
 }
@@ -45,11 +46,15 @@ export async function ensureSchema() {
       ('Web Consultation','Professional web consultation services',20000),
       ('Professional Shoot','Professional camera and equipment shoot',20000)
       ON CONFLICT (name) DO NOTHING`;
-  })().catch((error) => { ready = null; throw error; });
+  })().catch((error) => {
+    ready = null;
+    throw error;
+  });
   return ready;
 }
 
-export const num = (value: unknown) => Number.isFinite(Number(value)) ? Number(value) : 0;
+export const num = (value: unknown) =>
+  Number.isFinite(Number(value)) ? Number(value) : 0;
 export function first<T = Record<string, unknown>>(rows: unknown): T {
   return (rows as T[])[0];
 }
