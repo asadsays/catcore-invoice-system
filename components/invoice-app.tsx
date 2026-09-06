@@ -15,7 +15,9 @@ import {
   X,
   CircleCheck,
   Copy,
-  Download,
+  ExternalLink,
+  Link2,
+  QrCode,
   MessageCircle,
   Mail,
   RefreshCw,
@@ -254,10 +256,43 @@ export default function InvoiceApp() {
       setDialog(null);
       setNotice(`Invoice ${j.invoice_number} generated successfully.`);
       await load();
+      setView("Invoices");
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "Unable to create invoice");
     } finally {
       setBusy(false);
+    }
+  };
+  const shareLink = async (inv: Invoice) => {
+    const response = await fetch(`/api/invoices/${inv.id}/share`, {
+      method: "POST",
+    });
+    const result = await response.json();
+    if (!response.ok)
+      throw new Error(result.error || "Unable to create web link");
+    return window.location.origin + result.path;
+  };
+  const webView = async (inv: Invoice) => {
+    const opened = window.open("about:blank", "_blank");
+    try {
+      const url = await shareLink(inv);
+      if (opened) {
+        opened.opener = null;
+        opened.location.href = url;
+      } else {
+        window.location.assign(url);
+      }
+    } catch (e) {
+      opened?.close();
+      setNotice(e instanceof Error ? e.message : "Unable to open web view");
+    }
+  };
+  const copyLink = async (inv: Invoice) => {
+    try {
+      await navigator.clipboard.writeText(await shareLink(inv));
+      setNotice(`Web link copied for ${inv.invoice_number}.`);
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Unable to copy web link");
     }
   };
   const pdf = async (inv: Invoice) => {
@@ -399,6 +434,8 @@ export default function InvoiceApp() {
                 invoices={data.invoices}
                 duplicate={duplicate}
                 pdf={pdf}
+                webView={webView}
+                copyLink={copyLink}
                 whatsapp={whatsapp}
                 email={email}
                 status={status}
@@ -574,7 +611,16 @@ function Recent({
     </>
   );
 }
-function Invoices({ invoices, duplicate, pdf, whatsapp, email, status }: any) {
+function Invoices({
+  invoices,
+  duplicate,
+  pdf,
+  webView,
+  copyLink,
+  whatsapp,
+  email,
+  status,
+}: any) {
   return (
     <section>
       <div className="toolbar">
@@ -583,7 +629,7 @@ function Invoices({ invoices, duplicate, pdf, whatsapp, email, status }: any) {
       </div>
       <InvoiceTable
         invoices={invoices}
-        actions={{ duplicate, pdf, whatsapp, email, status }}
+        actions={{ duplicate, pdf, webView, copyLink, whatsapp, email, status }}
       />
     </section>
   );
@@ -632,25 +678,20 @@ function InvoiceTable({
             {actions ? (
               <div className="row-actions">
                 <button
-                  title="Online view"
-                  onClick={async () => {
-                    try {
-                      const r = await fetch(`/api/invoices/${inv.id}/share`, {
-                        method: "POST",
-                      });
-                      const d = await r.json();
-                      if (!r.ok) throw new Error(d.error);
-                      window.location.assign(d.path);
-                    } catch (e) {
-                      alert(
-                        e instanceof Error
-                          ? e.message
-                          : "Unable to open invoice",
-                      );
-                    }
-                  }}
+                  className="action-main"
+                  title="Open web view"
+                  onClick={() => actions.webView(inv)}
                 >
-                  <Eye />
+                  <ExternalLink />
+                  <span>Web View</span>
+                </button>
+                <button
+                  className="action-main"
+                  title="Copy client web link"
+                  onClick={() => actions.copyLink(inv)}
+                >
+                  <Link2 />
+                  <span>Copy Link</span>
                 </button>
                 <button
                   title="Revoke online link"
@@ -666,21 +707,30 @@ function InvoiceTable({
                   }}
                 >
                   <X />
+                  <span className="sr-only">Revoke Link</span>
                 </button>
                 <button
                   title="Duplicate"
                   onClick={() => actions.duplicate(inv)}
                 >
                   <Copy />
+                  <span className="sr-only">Duplicate</span>
                 </button>
-                <button title="PDF" onClick={() => actions.pdf(inv)}>
-                  <Download />
+                <button
+                  className="action-main"
+                  title="Download A5 PDF with QR code"
+                  onClick={() => actions.pdf(inv)}
+                >
+                  <QrCode />
+                  <span>PDF + QR</span>
                 </button>
                 <button title="WhatsApp" onClick={() => actions.whatsapp(inv)}>
                   <MessageCircle />
+                  <span className="sr-only">WhatsApp</span>
                 </button>
                 <button title="Email" onClick={() => actions.email(inv)}>
                   <Mail />
+                  <span className="sr-only">Email</span>
                 </button>
               </div>
             ) : null}
